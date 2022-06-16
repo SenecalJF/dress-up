@@ -11,15 +11,16 @@ def main(url: str):
     i = 0
     for item in soup.find_all("img"):
         img_ext = item["src"]
-        full_url = url + img_ext
-        r = requests.get(full_url, stream=True)
-        if r.status_code == 200:
-            with open(f"images/{i}.jpg", "wb") as f:
-                r.raw.decode_content = True
-                shutil.copyfileobj(r.raw, f)
-            img = mpim.imread(f"images/{i}.jpg")
-            imgplot = plt.imshow(img)
-            plt.show()
+        print(img_ext)
+        # full_url = url + img_ext
+        # r = requests.get(full_url, stream=True)
+        # if r.status_code == 200:
+        #     with open(f"images/{i}.jpg", "wb") as f:
+        #         r.raw.decode_content = True
+        #         shutil.copyfileobj(r.raw, f)
+        #     img = mpim.imread(f"images/{i}.jpg")
+        #     imgplot = plt.imshow(img)
+        #     plt.show()
         print(item["src"])
 
 
