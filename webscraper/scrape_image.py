@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpim
 import time
 import xlsxwriter
-from pynput.keyboard import Listener
 
 
 def is_valid(url):
@@ -71,41 +70,44 @@ def main(url, path):
     # for img in imgs:
     #     download(img, path)
     # time.sleep(10)
-    lookup_images(path)
+    dataset = DataSetBuilder(path)
+    dataset.lookup_images()
 
 
-def on_release(key):
-    if key == '1':
-        return key
-    elif key == '0':
-        return key
-    else:
-        return 'null'
+class DataSetBuilder(object):
+    def __init__(self, directory):
+        self.directory = directory
+        self.row = 2
+        self.workbook = xlsxwriter.Workbook('result.xlsx')
+        self.worksheet = self.workbook.add_worksheet('result1')
+        self.COLUMNS = ['A', 'B']
+        self.worksheet.write(self.COLUMNS[0]+'1', 'Filename')
+        self.worksheet.write(self.COLUMNS[1]+'2', 'Choice')
 
-
-def lookup_images(directory):
-    workbook = xlsxwriter.Workbook('result.xlsx')
-    worksheet = workbook.add_worksheet('result1')
-    row = 2
-    COLUMNS = ['A', 'B']
-    worksheet.write(COLUMNS[0]+'1', 'Filename')
-    worksheet.write(COLUMNS[1]+'2', 'Choice')
-    # with Listener(on_release=on_release) as listener:
-    #     listener.join()
-    for filename in os.listdir(directory):
-        f = os.path.join(directory, filename)
-        img = mpim.imread(f)
-        plt.imshow(img)
-        plt.show()
-        print(filename)
-        worksheet.write(COLUMNS[0]+str(row), filename)
-        choice = input("1: good , 0: Bad")
-        if choice != '1' or choice != '0':
-            choice = '0'
-        worksheet.write(COLUMNS[1]+str(row), choice)
+    def on_key_press(self, event):
+        print(event.key)
+        if event.key == '1':
+            self.worksheet.write(self.COLUMNS[1]+str(self.row), 1)
+        elif event.key == '0':
+            self.worksheet.write(self.COLUMNS[1]+str(self.row), 0)
+        else:
+            self.worksheet.write(self.COLUMNS[1]+str(self.row), 0)
         plt.close()
-        row += 1
-    workbook.close()
+        return event.key
+
+    def lookup_images(self):
+        for filename in os.listdir(self.directory):
+            f = os.path.join(self.directory, filename)
+            img = mpim.imread(f)
+            fig = plt.gcf()
+            fig.canvas.set_window_title('1: good , 0: Bad')
+            fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+
+            plt.imshow(img)
+            plt.show()
+            self.worksheet.write(self.COLUMNS[0]+str(self.row), filename)
+            self.row += 1
+        self.workbook.close()
 
 
 if __name__ == "__main__":
