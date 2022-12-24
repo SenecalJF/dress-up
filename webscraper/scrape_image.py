@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpim
 import time
 import xlsxwriter
+import random
 
 
 def is_valid(url):
@@ -65,24 +66,18 @@ def download(url, pathname):
             progress.update(len(data))
 
 
-def main(url, path):
-    # imgs = get_all_images(url)
-    # for img in imgs:
-    #     download(img, path)
-    # time.sleep(10)
-    dataset = DataSetBuilder(path)
-    dataset.lookup_images()
-
-
 class DataSetBuilder(object):
     def __init__(self, directory):
         self.directory = directory
         self.row = 2
-        self.workbook = xlsxwriter.Workbook('result.xlsx')
+        # genere a random number for the file name
+        randomID = random.randint(1, 10000000)
+        self.workbook = xlsxwriter.Workbook(
+            f"./database/result{randomID}.xlsx")
         self.worksheet = self.workbook.add_worksheet('result1')
         self.COLUMNS = ['A', 'B']
         self.worksheet.write(self.COLUMNS[0]+'1', 'Filename')
-        self.worksheet.write(self.COLUMNS[1]+'2', 'Choice')
+        self.worksheet.write(self.COLUMNS[1]+'1', 'Choice')
 
     def on_key_press(self, event):
         print(event.key)
@@ -97,17 +92,27 @@ class DataSetBuilder(object):
 
     def lookup_images(self):
         for filename in os.listdir(self.directory):
-            f = os.path.join(self.directory, filename)
-            img = mpim.imread(f)
-            fig = plt.gcf()
-            fig.canvas.set_window_title('1: good , 0: Bad')
-            fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+            if filename.endswith('.jpg' or '.png' or '.jpeg'):
+                f = os.path.join(self.directory, filename)
+                img = mpim.imread(f)
+                fig = plt.gcf()
+                fig.canvas.set_window_title('1: good , 0: Bad')
+                fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
-            plt.imshow(img)
-            plt.show()
-            self.worksheet.write(self.COLUMNS[0]+str(self.row), filename)
-            self.row += 1
+                plt.imshow(img)
+                plt.show()
+                self.worksheet.write(self.COLUMNS[0]+str(self.row), filename)
+                self.row += 1
         self.workbook.close()
+
+
+def main(url, path):
+    # imgs = get_all_images(url)
+    # for img in imgs:
+    #     download(img, path)
+    # time.sleep(10)
+    dataset = DataSetBuilder(path)
+    dataset.lookup_images()
 
 
 if __name__ == "__main__":
