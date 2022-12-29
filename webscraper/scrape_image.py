@@ -2,6 +2,8 @@ import requests
 import os
 from tqdm import tqdm
 from bs4 import BeautifulSoup as bs
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from urllib.parse import urljoin, urlparse
 import matplotlib.pyplot as plt
 import matplotlib.image as mpim
@@ -19,11 +21,20 @@ def is_valid(url):
 
 
 def get_all_images(url):
-
-    soup = bs(requests.get(url).content, 'html.parser')
+    """
+    Returns all image URLs on a single `url`
+    """
+    request = requests.get(url)
+    print(request)
+    if(request.status_code != 200):
+        print("Error: ", request.status_code)
+        return
+    soup = bs(request.content, 'html.parser')
+    # print(soup)
     urls = []
     i = 0
     for img in tqdm(soup.find_all('img'), 'Extracting images'):
+        print(img)
         if i == 50:
             break
         img_url = img.attrs.get('src')
@@ -41,6 +52,35 @@ def get_all_images(url):
     return urls
 
 
+def get_all_images_selenium(url):
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.get(url)
+    driver.implicitly_wait(10)
+    for i in range(5):
+        driver.execute_script(
+            f"window.scrollTo(0,{i}*1000)")
+        time.sleep(2)
+    html = driver.page_source
+    soup = bs(html, 'html.parser')
+    images = soup.find_all('img')
+    urls = []
+    for image in images:
+        print(image.get('srcset'))
+        if image.get('srcset'):
+            image_url = image['srcset']
+        else:
+            image_url = image['src']
+        # if image_url.endswith('.jpg') or image_url.endswith('.png'):
+        if not image_url.startswith('http'):
+            image_url = 'http:' + image_url
+        print('----- getit -----')
+        urls.append(image_url)
+        print(image_url)
+
+    driver.quit()
+    return urls
+
+
 def download(url, pathname):
     """
     Downloads a file given an URL and puts it in the folder `pathname`
@@ -53,7 +93,9 @@ def download(url, pathname):
     # get the total file size
     file_size = int(response.headers.get("Content-Length", 0))
     # get the file name
-    filename = os.path.join(pathname, url.split("/")[-1])
+    # generate a random number to avoid duplicate file names
+    random_number = random.randint(1, 100000)
+    filename = os.path.join(pathname, url.split("/")[-1]+str(random_number))
     filename += '.jpg'
     # progress bar, changing the unit to bytes instead of iteration (default by tqdm)
     progress = tqdm(response.iter_content(
@@ -66,58 +108,24 @@ def download(url, pathname):
             progress.update(len(data))
 
 
-class DataSetBuilder(object):
-    def __init__(self, directory):
-        self.directory = directory
-        self.row = 2
-        # genere a random number for the file name
-        randomID = random.randint(1, 10000000)
-        self.workbook = xlsxwriter.Workbook(
-            f"./database/result{randomID}.xlsx")
-        self.worksheet = self.workbook.add_worksheet('result1')
-        self.COLUMNS = ['A', 'B']
-        self.worksheet.write(self.COLUMNS[0]+'1', 'Filename')
-        self.worksheet.write(self.COLUMNS[1]+'1', 'Choice')
-
-    def on_key_press(self, event):
-        print(event.key)
-        if event.key == '1':
-            self.worksheet.write(self.COLUMNS[1]+str(self.row), 1)
-        elif event.key == '0':
-            self.worksheet.write(self.COLUMNS[1]+str(self.row), 0)
-        else:
-            self.worksheet.write(self.COLUMNS[1]+str(self.row), 0)
-        plt.close()
-        return event.key
-
-    def lookup_images(self):
-        for filename in os.listdir(self.directory):
-            if filename.endswith('.jpg' or '.png' or '.jpeg'):
-                f = os.path.join(self.directory, filename)
-                img = mpim.imread(f)
-                fig = plt.gcf()
-                fig.canvas.set_window_title('1: good , 0: Bad')
-                fig.canvas.mpl_connect('key_press_event', self.on_key_press)
-
-                plt.imshow(img)
-                plt.show()
-                self.worksheet.write(self.COLUMNS[0]+str(self.row), filename)
-                self.row += 1
-        self.workbook.close()
-
-
 def main(url, path):
-    # imgs = get_all_images(url)
-    # for img in imgs:
-    #     download(img, path)
-    # time.sleep(10)
-    dataset = DataSetBuilder(path)
-    dataset.lookup_images()
+    imgs = get_all_images_selenium(url)
+    if(imgs == None):
+        print("Error: Images cannot be downloaded from this website.")
+        return
+    print(f'Downloading {len(imgs)} images')
+    for img in imgs:
+        try:
+            download(img, path)
+        except:
+            print("Error: ", img)
 
 
 if __name__ == "__main__":
     print(
         "Which website would you like to see some pieces of clothing that fits your style?"
     )
+    website_name = input("Enter the website name : ")
     url = input("Enter the url : ")
-    main(url, './images/')
+    main(url, '..\images\\' + website_name)
+    print("All images have been downloaded! You can now start to classify them, by running the dataset_builder.py file.")
